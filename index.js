@@ -150,7 +150,6 @@ app.post('/upload', upload.array('mainimage', 10), async (req, res) => {
             await uploadToS3(file.buffer).then((res) => {
                 path = res.Location;
             });
-
             const sql = `INSERT INTO images (product_id, mainimage) VALUES (?, ?)`;
             const values = [product_id, path];
 
@@ -191,11 +190,30 @@ app.get('/Showimages', (req, res) => {
     })
 });
 
+app.get('/imagesbyid/:product_id', (req, res) => {
+    const product_id = req.params.product_id;
+    const sqlll = `select * from images where product_id=?`;
+    // const sql = `SELECT * FROM images WHERE product_id=?`
+    connection.query(sqlll, [product_id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'Images of specific product',
+                data: data
+            })
+        }
+    })
+});
 
 app.get('/', (req, res) => {
     res.send('Database  for attaching s3 bucket');
 });
-
 
 app.get('/Productwithimages', (req, res) => {
     const sqll = `select product.*, images.mainimage
@@ -245,9 +263,11 @@ app.post('/ADDProduct', (req, res) => {
     const Price = req.body.Price;
     const Brand_id = req.body.Brand_id;
     const Category_id = req.body.Category_id;
-
-    const sql = `insert into product (Product_Name,Weight,Price,Brand_id,Category_id) value(?,?,?,?,?)`;
-    connection.query(sql, [Product_Name, Weight, Price, Brand_id, Category_id], (err, data) => {
+    const description = req.body.description;
+    const benefits = req.body.benefits;
+    const ingredients = req.body.ingredients;
+    const sql = `insert into product (Product_Name,Weight,Price,Brand_id,Category_id,description,benefits,ingredients) value(?,?,?,?,?,?,?,?)`;
+    connection.query(sql, [Product_Name, Weight, Price, Brand_id, Category_id, description, benefits, ingredients], (err, data) => {
         if (err) {
             res.send({
                 success: false,
@@ -267,8 +287,8 @@ app.post('/ADDProduct', (req, res) => {
 app.post('/Productbycategoryandbrand', (req, res) => {
     const Category_id = req.body.Category_id;
     const Brand_id = req.body.Brand_id;
-    const sql = `select product.Product_Name,product.Price,product.Weight,
-   brand.Brand_Name, category.Category_Name
+    const sql = `select product.Product_Name,product.Price,product.Weight,product.description,product.benefits,product.ingredients
+                brand.Brand_Name, category.Category_Name
                 from((product
                 inner join brand on product.Category_id = brand.Brand_id)
                 inner join category on product.Category_id = category.Category_id) where product.Category_id=? and  product.Brand_id=? ;`
@@ -288,6 +308,56 @@ app.post('/Productbycategoryandbrand', (req, res) => {
         }
     })
 });
+
+app.put('/Updateproduct/:id', (req, res) => {
+    const id = req.params.id
+    const Product_Name = req.body.Product_Name;
+    const Weight = req.body.Weight;
+    const Price = req.body.Price;
+    const Brand_id = req.body.Brand_id;
+    const Category_id = req.body.Category_id;
+    const description = req.body.description;
+    const benefits = req.body.benefits;
+    const ingredients = req.body.ingredients;
+    const sql = `update product set Product_Name=?,Weight=?,Price=?,Brand_id=?,Category_id=?,description=?,benefits=?,ingredients=? where id=?`;
+    connection.query(sql, [Product_Name, Weight, Price, Brand_id, Category_id, description, benefits, ingredients, id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'Product Updated.',
+                data: data
+            })
+        }
+    })
+});
+
+app.delete('/Deleteproduct/:id', (req, res) => {
+    const id = req.params.id;
+    const sql = `delete from product where id=?`;
+    connection.query(sql, [id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'Product deleted successfully..',
+                data: data
+            })
+        }
+    })
+});
+//end the product api 
+
 
 //start category apis
 app.post('/addcategory', (req, res) => {
@@ -352,7 +422,6 @@ app.get('/getbyid/:Category_id', (req, res) => {
 app.put('/updatecategory/:Category_id', (req, res) => {
     const Category_id = req.params.Category_id;
     const Category_Name = req.body.Category_Name;
-
     const updatecategory = `update category set Category_Name=? where Category_id = ?`;
     connection.query(updatecategory, [Category_Name, Category_id], (err, data) => {
         if (err) {
@@ -501,7 +570,6 @@ app.post('/Contact', (req, res) => {
     const Email = req.body.Email;
     const Mobileno = req.body.Mobileno;
     const Message = req.body.Message;
-
     const sqll = `insert into enquiry (Name,Email,Mobileno,Message) values(?,?,?,?) `;
     connection.query(sqll, [Name, Email, Mobileno, Message], (err, result) => {
         if (err) {
@@ -569,7 +637,6 @@ app.post('/Registeration', (req, res) => {
     const Email = req.body.Email;
     const Address = req.body.Address;
     const Mobileno = req.body.Mobileno;
-
     const sql = `insert into user (Name,Username,Password,Email,Address,Mobileno) values (?,?,?,?,?,?)`;
     connection.query(sql, [Name, Username, Password, Email, Address, Mobileno], (err, data) => {
         if (err) {
@@ -866,7 +933,6 @@ app.delete('/Emptycart/:Cart_id', (req, res) => {
 //Api end of carts table
 
 // API for Wishlist table Start......
-
 app.post('/AddWishlist', (req, res) => {
     const token = req.headers['x-access-token'];
     if (!token) {
@@ -988,6 +1054,25 @@ app.get('/Wishlist', (req, res) => {
     }
 });
 
+app.get('/Allwishlist', (req, res) => {
+    const sqll = `select * from  wishlist inner join product on wishlist.Product_id = product.id`;
+    connection.query(sqll, (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'Wishlist of all users',
+                data: data
+            })
+        }
+    })
+})
+
 //API of wishlist table ends...
 
 //Api for orddertable
@@ -1008,7 +1093,6 @@ app.post('/Adddorder', (req, res) => {
                     data: []
                 })
             } else {
-
                 const Order_date = req.body.Order_date;
                 const Total_amount = req.body.Total_amount;
                 const Shipping_address = req.body.Shipping_address;
@@ -1036,5 +1120,66 @@ app.post('/Adddorder', (req, res) => {
         })
     }
 });
+
+app.get('/AllordersforAdmin', (req, res) => {
+    const sql = `select * from orders`;
+    connection.query(sql, (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'All Orders',
+                data: data
+            })
+        }
+    })
+});
+
+app.post('/OrdersBydate', (req, res) => {
+    const Order_date = req.body.Order_date;
+    const sql = `select * from orders where Order_date=?`;
+    connection.query(sql, [Order_date], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: "Showing order by date",
+                data: data
+            })
+        }
+    })
+});
+
+app.post('/Ordersbyuser_id', (req, res) => {
+    const User_id = req.body.User_id;
+    const sql = `select * from orders where  User_id=?`;
+    connection.query(sql, [User_id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'Orders By User',
+                data: data
+            })
+        }
+    })
+});
+
+
 
 app.listen(5000);
