@@ -545,7 +545,6 @@ app.put('/updatebrand/:Brand_id', (req, res) => {
 app.delete('/deletebrand/:Brand_id', (req, res) => {
     const Brand_id = req.params.Brand_id;
     const query = `delete from brand where Brand_id=?`;
-
     connection.query(query, [Brand_id], (err, data) => {
         if (err) {
             res.send({
@@ -1120,6 +1119,49 @@ app.post('/Adddorder', (req, res) => {
         })
     }
 });
+
+app.get('/Orders/:User_id', (req, res) => {
+    const token = req.headers['x-access-token'];
+    if (!token) {
+        res.status(401).send({
+            success: false,
+            message: 'unauthorized',
+            data: []
+        })
+    } else {
+        jwt.verify(token, secret, (err, decoded) => {
+            if (err) {
+                res.status(401).send({
+                    success: false,
+                    message: 'unauthorized',
+                    data: []
+                })
+            } else {
+                const sql = `select orders.*, cart.Product_id, product.Product_Name
+                              from(( orders    
+                             inner join cart on orders.Cart_id = cart.Cart_id)
+                             inner join product on cart.Product_id=product.id) 
+                             where orders.User_id=?;`
+
+                connection.query(sql, [decoded.User_id], (err, result) => {
+                    if (err) {
+                        res.status(500).send({
+                            success: false,
+                            message: err.sqlMessage,
+                            data: []
+                        })
+                    } else {
+                        res.status(200).send({
+                            success: true,
+                            message: 'Your All Orders ',
+                            data: result
+                        })
+                    }
+                })
+            }
+        })
+    }
+})
 
 app.get('/AllordersforAdmin', (req, res) => {
     const sql = `select * from orders`;
