@@ -193,7 +193,6 @@ app.get('/Showimages', (req, res) => {
 app.get('/imagesbyid/:product_id', (req, res) => {
     const product_id = req.params.product_id;
     const sqlll = `select * from images where product_id=?`;
-    // const sql = `SELECT * FROM images WHERE product_id=?`
     connection.query(sqlll, [product_id], (err, data) => {
         if (err) {
             res.status(500).send({
@@ -236,8 +235,6 @@ app.get('/Productwithimages', (req, res) => {
     })
 });
 
-
-
 app.get('/Product', (req, res) => {
     const sql = `select * from product`;
     connection.query(sql, (err, data) => {
@@ -261,6 +258,8 @@ app.post('/ADDProduct', (req, res) => {
     const Product_Name = req.body.Product_Name;
     const Weight = req.body.Weight;
     const Price = req.body.Price;
+    // const discount = req.body.discount;
+    // const Amount = req.body.Amount;
     const Brand_id = req.body.Brand_id;
     const Category_id = req.body.Category_id;
     const description = req.body.description;
@@ -569,8 +568,9 @@ app.post('/Contact', (req, res) => {
     const Email = req.body.Email;
     const Mobileno = req.body.Mobileno;
     const Message = req.body.Message;
-    const sqll = `insert into enquiry (Name,Email,Mobileno,Message) values(?,?,?,?) `;
-    connection.query(sqll, [Name, Email, Mobileno, Message], (err, result) => {
+    const Date = req.body.Date;
+    const sqll = `insert into enquiry (Name,Email,Mobileno,Message,Date) values(?,?,?,?,?) `;
+    connection.query(sqll, [Name, Email, Mobileno, Message, Date], (err, result) => {
         if (err) {
             res.status(500).send({
                 success: false,
@@ -620,6 +620,26 @@ app.delete('/Deleteenquiry/:Id', (req, res) => {
             res.status(200).send({
                 success: true,
                 message: 'The Data Is Deleted!',
+                data: data
+            })
+        }
+    })
+});
+
+app.post('/Getenquirybydate', (req, res) => {
+    const Date = req.body.Date;
+    const sqll = `select * from enquiry where Date=?`;
+    connection.query(sqll, [Date], (data, err) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: '',
                 data: data
             })
         }
