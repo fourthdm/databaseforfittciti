@@ -1031,6 +1031,45 @@ app.delete('/Deletewishlist/:Wishlist_id', (req, res) => {
     })
 });
 
+app.delete('/Deletewshlistbyuser/:Wishlist_id', (req, res) => {
+    const Wishlist_id = req.params.Wishlist_id
+    const token = req.headers['x-access-token'];
+    if (!token) {
+        res.status(401).send({
+            success: false,
+            message: 'unauthorized',
+            data: []
+        })
+    } else {
+        jwt.verify(token, secret, (err, decoded) => {
+            if (err) {
+                res.status(401).send({
+                    success: false,
+                    message: 'unauthorized',
+                    data: []
+                })
+            } else {
+                const sql = `delete from wishlist where Wishlist_id=? and User_id=?`;
+                connection.query(sql, [Wishlist_id, decoded.User_id], (err, result) => {
+                    if (err) {
+                        res.status(500).send({
+                            success: false,
+                            message: err.sqlMessage,
+                            data: []
+                        })
+                    } else {
+                        res.status(200).send({
+                            success: true,
+                            message: 'Product deleted by Wishlst',
+                            data: result
+                        })
+                    }
+                })
+            }
+        })
+    }
+})
+
 app.get('/Wishlist', (req, res) => {
     const token = req.headers['x-access-token'];
     if (!token) {
@@ -1241,6 +1280,7 @@ app.post('/Ordersbyuser_id', (req, res) => {
         }
     })
 });
+
 
 
 
