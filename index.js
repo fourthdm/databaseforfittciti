@@ -734,7 +734,6 @@ app.get('/Information', (req, res) => {
 app.post('/login', (req, res) => {
     const Username = req.body.Username;
     const Password = req.body.Password;
-
     const sql = `select * from user where Username=? and Password = ?`;
     connection.query(sql, [Username, Password], (err, result) => {
         if (err) {
@@ -790,9 +789,18 @@ app.post('/AddCart', (req, res) => {
             } else {
                 const Product_id = req.body.Product_id;
                 const Quantity = req.body.Quantity;
+                // const Total = req.body.Total;
 
-                const sql = `insert into cart (Product_id,User_id,Quantity) values (?,?,?)`;
-                connection.query(sql, [Product_id, Quantity, decoded.User_id], (err, result) => {
+                // const sql = `insert into cart product.Product_Name, product.Price
+                // from cart 
+                // inner join product on cart.Product_id = product.id
+                // where user_id=?;`
+                const Total = `select cart.*, product.Product_Name, product.Price, SUM(cart.Quantity * product.Price)
+                from cart 
+                inner join product on cart.Product_id = product.id
+                where user_id=?;`;
+                const sql = `insert into cart (Product_id,User_id,Quantity,Total) values (?,?,?,Total)`;
+                connection.query(sql, [Product_id, Quantity, Total, decoded.User_id], (err, result) => {
                     if (err) {
                         res.status(500).send({
                             success: false,
@@ -812,6 +820,47 @@ app.post('/AddCart', (req, res) => {
     }
 });
 
+app.get('/cartbyuser', (req, res) => {
+    const token = req.headers['x-access-token'];
+    if (!token) {
+        res.status(401).send({
+            success: false,
+            message: 'unauthorized',
+            data: []
+        })
+    } else {
+        jwt.verify(token, secret, (err, decoded) => {
+            if (err) {
+                res.status(401).send({
+                    success: false,
+                    message: 'unauthorized',
+                    data: []
+                })
+            } else {
+                const sql = `select cart.*, product.Product_Name, product.Price, SUM(cart.Quantity * product.Price)
+                from cart 
+                inner join product on cart.Product_id = product.id
+                where user_id=?;`
+                connection.query(sql, [decoded.User_id], (err, result) => {
+                    if (err) {
+                        res.status(500).send({
+                            success: false,
+                            message: err.sqlMessage,
+                            data: []
+                        })
+                    } else {
+                        res.status(200).send({
+                            success: true,
+                            message: 'Products in  Cart',
+                            data: result
+                        })
+                    }
+                })
+            }
+        })
+    }
+})
+
 app.get('/Carts', (req, res) => {
     const token = req.headers['x-access-token'];
     if (!token) {
@@ -829,7 +878,17 @@ app.get('/Carts', (req, res) => {
                     data: []
                 })
             } else {
-                const sql = `select * from cart where User_id=? `;
+                //    const sql = `select cart.Cart_id ,cart.Product_id, product.Product_Name, product.Price, SUM(cart.Quantity * product.Price)
+                //     from cart 
+                //     inner join product on cart.Product_id = product.id
+                //     where user_id=?;` 
+                // const sql = `select * from cart where User_id=? `;
+                const sql = `SELECT cart.Cart_id, cart.Product_id,cart.Quantity, product.Product_Name,product.Price, 
+                    cart.Quantity * product.Price AS Total , cart.Total + cart.Total AS  GrandTotal 
+                FROM cart 
+                INNER JOIN product ON cart.Product_id = product.id
+                WHERE cart.User_id = ?
+                GROUP BY cart.Cart_id;`
                 connection.query(sql, [decoded.User_id], (err, result) => {
                     if (err) {
                         res.status(500).send({
@@ -911,43 +970,103 @@ app.get('/Cartswithprice', (req, res) => {
 })
 
 app.delete('/DeletebyProduct/:Product_id', (req, res) => {
-    const Product_id = req.params.Product_id;
-    const sql1 = `delete from cart where Product_id = ?`;
-    connection.query(sql1, [Product_id], (err, result) => {
-        if (err) {
-            res.status(500).send({
-                success: false,
-                message: err.sqlMessage,
-                data: []
-            })
-        } else {
-            res.status(200).send({
-                success: true,
-                message: "Product deleted from cart",
-                data: result
-            })
-        }
-    })
+    const token = req.headers['x-access-token'];
+    if (!token) {
+        res.status(401).send({
+            success: false,
+            message: 'unauthorized',
+            data: []
+        })
+    } else {
+        jwt.verify(token, secret, (err, decoded) => {
+            if (err) {
+                res.status(401).send({
+                    success: false,
+                    message: 'unauthorized',
+                    data: []
+                })
+            } else {
+
+                const Product_id = req.params.Product_id;
+                const sql = `delete from cart where Product_id = ?`;
+                // const sql = `select * from wishlist`;
+                connection.query(sql, [Product_id, decoded.User_id], (err, result) => {
+                    if (err) {
+                        res.status(500).send({
+                            success: false,
+                            message: err.sqlMessage,
+                            data: []
+                        })
+                    } else {
+                        res.status(200).send({
+                            success: true,
+                            message: 'Product deleted',
+                            data: result
+                        })
+                    }
+                })
+            }
+        })
+    }
 });
 
 app.delete('/Emptycart/:Cart_id', (req, res) => {
-    const Cart_id = req.params.Cart_id;
-    const sql2 = `delete from cart where Cart_id = ?`;
-    connection.query(sql2, [Cart_id], (err, data) => {
-        if (err) {
-            res.status(500).send({
-                success: false,
-                message: err.sqlMessage,
-                data: []
-            })
-        } else {
-            res.status(200).send({
-                success: true,
-                message: 'Empty cart',
-                data: data
-            })
-        }
-    })
+    const token = req.headers['x-access-token'];
+    if (!token) {
+        res.status(401).send({
+            success: false,
+            message: 'unauthorized',
+            data: []
+        })
+    } else {
+        jwt.verify(token, secret, (err, decoded) => {
+            if (err) {
+                res.status(401).send({
+                    success: false,
+                    message: 'unauthorized',
+                    data: []
+                })
+            } else {
+
+                const Cart_id = req.params.Cart_id;
+                const sql = `delete from cart where Cart_id = ?`;
+                // const sql = `select * from wishlist`;
+                connection.query(sql, [Cart_id, decoded.User_id], (err, result) => {
+                    if (err) {
+                        res.status(500).send({
+                            success: false,
+                            message: err.sqlMessage,
+                            data: []
+                        })
+                    } else {
+                        res.status(200).send({
+                            success: true,
+                            message: 'Cart deleted',
+                            data: result
+                        })
+                    }
+                })
+            }
+        })
+    }
+
+    // const Cart_id = req.params.Cart_id;
+    // const sql2 = `delete from cart where Cart_id = ?`;
+    // connection.query(sql2, [Cart_id], (err, data) => {
+    //     if (err) {
+    //         res.status(500).send({
+    //             success: false,
+    //             message: err.sqlMessage,
+    //             data: []
+    //         })
+    //     } else {
+    //         res.status(200).send({
+    //             success: true,
+    //             message: 'Empty cart',
+    //             data: data
+    //         })
+    //     }
+    // })
 });
 //Api end of carts table
 
@@ -1088,7 +1207,7 @@ app.get('/Wishlist', (req, res) => {
                 })
             } else {
                 const sql = `select wishlist.*, product.Product_Name
-                              from wishlist 
+                             from wishlist 
                              inner join product on wishlist.Product_id = product.id
                              where user_id=?;`
                 // const sql = `select * from wishlist`;
@@ -1156,7 +1275,6 @@ app.post('/Adddorder', (req, res) => {
                 const Shipping_address = req.body.Shipping_address;
                 const Cart_id = req.body.Cart_id;
 
-                Total_amount = cart.reduce((Price, Quantity) => cart.Price);
 
                 const sql = `insert into orders (Order_date,Total_amount, Shipping_address,Cart_id,User_id) values (?,?,?,?,?)`;
                 connection.query(sql, [Order_date, Total_amount, Shipping_address, Cart_id, decoded.User_id], (err, result) => {
@@ -1280,8 +1398,5 @@ app.post('/Ordersbyuser_id', (req, res) => {
         }
     })
 });
-
-
-
 
 app.listen(5000);
