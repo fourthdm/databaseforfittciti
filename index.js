@@ -2,6 +2,8 @@
 const express = require('express');
 const app = express();
 
+const nodemailer = require('nodemailer');
+
 const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 
@@ -254,19 +256,22 @@ app.get('/Product', (req, res) => {
     })
 });
 
-app.post('/ADDProduct', (req, res) => {
+
+
+app.post('/Addproduct', (req, res) => {
     const Product_Name = req.body.Product_Name;
     const Weight = req.body.Weight;
     const Price = req.body.Price;
-    // const discount = req.body.discount;
-    // const Amount = req.body.Amount;
+    const discount = req.body.discount;
+    const Amount = req.body.Amount;
+    const pricewithdiscount = req.body.pricewithdiscount;
     const Brand_id = req.body.Brand_id;
     const Category_id = req.body.Category_id;
     const description = req.body.description;
     const benefits = req.body.benefits;
     const ingredients = req.body.ingredients;
-    const sql = `insert into product (Product_Name,Weight,Price,Brand_id,Category_id,description,benefits,ingredients) value(?,?,?,?,?,?,?,?)`;
-    connection.query(sql, [Product_Name, Weight, Price, Brand_id, Category_id, description, benefits, ingredients], (err, data) => {
+    const sql = `insert into product (Product_Name,Weight,Price,discount,Brand_id,Category_id,description,benefits,ingredients,pricewithdiscount) value(?,?,?,?,?,?,?,?,?,Price - (Price * (discount / 100)))`;
+    connection.query(sql, [Product_Name, Weight, Price, discount, Brand_id, Category_id, description, benefits, ingredients, pricewithdiscount], (err, data) => {
         if (err) {
             res.send({
                 success: false,
@@ -281,16 +286,51 @@ app.post('/ADDProduct', (req, res) => {
             })
         }
     })
-});
+})
+
+// app.post('/ADDProduct', (req, res) => {
+//     const Product_Name = req.body.Product_Name;
+//     const Weight = req.body.Weight;
+//     const Price = req.body.Price;
+//     const discount = req.body.discount;
+//     const Amount = req.body.Amount;
+//     const Brand_id = req.body.Brand_id;
+//     const Category_id = req.body.Category_id;
+//     const description = req.body.description;
+//     const benefits = req.body.benefits;
+//     const ingredients = req.body.ingredients;
+//     const sql = `insert into product (Product_Name,Weight,Price,Brand_id,Category_id,description,benefits,ingredients) value(?,?,?,?,?,?,?,?)`;
+//     connection.query(sql, [Product_Name, Weight, Price, Brand_id, Category_id, description, benefits, ingredients], (err, data) => {
+//         if (err) {
+//             res.send({
+//                 success: false,
+//                 error: err.sqlMessage,
+//                 data: []
+//             })
+//         } else {
+//             res.send({
+//                 success: true,
+//                 error: '',
+//                 data: data
+//             })
+//         }
+//     })
+// });
 
 app.post('/Productbycategoryandbrand', (req, res) => {
     const Category_id = req.body.Category_id;
     const Brand_id = req.body.Brand_id;
-    const sql = `select product.Product_Name,product.Price,product.Weight,product.description,product.benefits,product.ingredients
-                brand.Brand_Name, category.Category_Name
-                from((product
-                inner join brand on product.Category_id = brand.Brand_id)
-                inner join category on product.Category_id = category.Category_id) where product.Category_id=? and  product.Brand_id=? ;`
+    const sql = `select product.*,
+    brand.Brand_Name, category.Category_Name
+    from((product
+    inner join brand on product.Brand_id = brand.Brand_id)
+    inner join category on product.Category_id = category.Category_id) where product.Category_id=? and  product.Brand_id=? ;`
+    //  const sql= `select * from product where Category_id=? and Brand_id=?`;
+    // const sql = `select product.Product_Name,product.Price,product.pricewithdiscount,product.Weight,product.description,product.benefits,product.ingredients,
+    //              brand.Brand_Name, category.Category_Name
+    //              from((product
+    //              inner join brand on product.Brand_id = brand.Brand_id)
+    //              inner join category on product.Category_id = category.Category_id) where product.Category_id=? and  product.Brand_id=? ;`
     connection.query(sql, [Category_id, Brand_id], (err, data) => {
         if (err) {
             res.send({
@@ -308,18 +348,60 @@ app.post('/Productbycategoryandbrand', (req, res) => {
     })
 });
 
+app.get('/Productbybrand/:Brand_id', (req, res) => {
+    const Brand_id = req.params.Brand_id;
+    const sql = `select * from product where  Brand_id = ?;`
+    connection.query(sql, [Brand_id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'data by brand',
+                data: data
+            })
+        }
+    })
+});
+
+app.get('/Productbycategoryid/:Category_id', (req, res) => {
+    const Category_id = req.params.Category_id;
+    const sql = `select * from product where Category_id=?`;
+    connection.query(sql, [Category_id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'product by category',
+                data: data,
+            })
+        }
+    })
+});
+
 app.put('/Updateproduct/:id', (req, res) => {
     const id = req.params.id
     const Product_Name = req.body.Product_Name;
     const Weight = req.body.Weight;
     const Price = req.body.Price;
+    const discount = req.body.discount;
+    const pricewithdiscount = req.body.pricewithdiscount;
     const Brand_id = req.body.Brand_id;
     const Category_id = req.body.Category_id;
     const description = req.body.description;
     const benefits = req.body.benefits;
     const ingredients = req.body.ingredients;
-    const sql = `update product set Product_Name=?,Weight=?,Price=?,Brand_id=?,Category_id=?,description=?,benefits=?,ingredients=? where id=?`;
-    connection.query(sql, [Product_Name, Weight, Price, Brand_id, Category_id, description, benefits, ingredients, id], (err, data) => {
+    const sql = `update product set Product_Name=?,Weight=?,Price=?,discount=?,Brand_id=?,Category_id=?,description=?,benefits=?,ingredients=?, pricewithdiscount=Price - (Price * (discount / 100)) where id=?`;
+    connection.query(sql, [Product_Name, Weight, Price, discount, Brand_id, Category_id, description, benefits, ingredients, id], (err, data) => {
         if (err) {
             res.status(500).send({
                 success: false,
@@ -795,11 +877,11 @@ app.post('/AddCart', (req, res) => {
                 // from cart 
                 // inner join product on cart.Product_id = product.id
                 // where user_id=?;`
-                const Total = `select cart.*, product.Product_Name, product.Price, SUM(cart.Quantity * product.Price)
+                const Total = `select cart.*, product.Product_Name, product.Price, product.pricewithdiscount, SUM(cart.Quantity * product.pricewithdiscount)
                 from cart 
                 inner join product on cart.Product_id = product.id
-                where user_id=?;`;
-                const sql = `insert into cart (Product_id,User_id,Quantity,Total) values (?,?,?,Total)`;
+                where user_id=?;`
+                const sql = `insert into cart (Product_id,User_id,Quantity,Total) values (?,?,?,Total);`
                 connection.query(sql, [Product_id, Quantity, Total, decoded.User_id], (err, result) => {
                     if (err) {
                         res.status(500).send({
@@ -837,7 +919,7 @@ app.get('/cartbyuser', (req, res) => {
                     data: []
                 })
             } else {
-                const sql = `select cart.*, product.Product_Name, product.Price, SUM(cart.Quantity * product.Price)
+                const sql = `select cart.*, product.Product_Name, product.Price, product.pricewithdiscount, SUM(cart.Quantity * product.pricewithdiscount)
                 from cart 
                 inner join product on cart.Product_id = product.id
                 where user_id=?;`
@@ -883,8 +965,8 @@ app.get('/Carts', (req, res) => {
                 //     inner join product on cart.Product_id = product.id
                 //     where user_id=?;` 
                 // const sql = `select * from cart where User_id=? `;
-                const sql = `SELECT cart.Cart_id, cart.Product_id,cart.Quantity, product.Product_Name,product.Price, 
-                    cart.Quantity * product.Price AS Total , cart.Total + cart.Total AS  GrandTotal 
+                const sql = `SELECT cart.Cart_id, cart.Product_id,cart.Quantity,product.discount, product.Product_Name,product.Price,product.pricewithdiscount,
+                    cart.Quantity * product.pricewithdiscount AS Total 
                 FROM cart 
                 INNER JOIN product ON cart.Product_id = product.id
                 WHERE cart.User_id = ?
@@ -1249,6 +1331,26 @@ app.get('/Allwishlist', (req, res) => {
         }
     })
 })
+
+app.get('/Wishlistbyuserid/:User_id', (req, res) => {
+    const User_id = req.params.User_id;
+    const sql = "SELECT * FROM wishlist WHERE User_id=?";
+    connection.query(sql, [User_id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: 'Wishlist of user',
+                data: data
+            })
+        }
+    })
+});
 
 //API of wishlist table ends...
 
