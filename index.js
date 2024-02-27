@@ -49,28 +49,28 @@ app.use(
 )
 
 const awsconfig = {
-    region: 'ap-south-1',
-    accessKeyId: 'AKIA3FLDYW3SNGBP6HCP',
-    secretAccessKey: 'TPNU/UyGkyofSzuZJiUtyI90gS5Y9k/HgeG0OLCQ',
+    region: 'region name',
+    accessKeyId: 'your_accesskey',
+    secretAccessKey: 'secrectkey',
     httpOptions: {
         timeout: 5000,
     }
 };
 
-const s3Client = new S3Client({ region: 'ap-south-1' });
+// const s3Client = new S3Client({ region: '' });
 
 const s3 = new AWS.S3(awsconfig);
 
 const razorpay = new Razorpay({
-    key_id: 'rzp_live_kFr6gQiD2PCk11',
-    key_secret: 'rzp_live_kFr6gQiD2PCk11',
+    key_id: 'key',
+    key_secret: 'key',
 });
 
 
 const uploadToS3 = (fileData) => {
     return new Promise((resolve, reject) => {
         const params = {
-            Bucket: "fourthdm-web-data",
+            Bucket: "bucketname",
             Key: `${Date.now().toString()}.jpg`,
             Body: fileData,
         };
@@ -105,6 +105,8 @@ const upload = multer({
     }
 });
 
+
+
 // app.post('/upload', upload.array('mainimage', 10), async (req, res) => {
 //     try {
 //         const product_id = req.body.product_id;
@@ -131,6 +133,59 @@ const upload = multer({
 //                 console.error('Error adding file to S3 or database:', err);
 //                 return res.status(500).send('An error occurred during file upload');
 //             }
+//         }
+//         res.send({
+//             success: true,
+//             message: "Files uploaded successfully"
+//         });
+//     } catch (err) {
+//         console.error('Error handling file upload:', err);
+//         res.status(500).send('An error occurred during file upload');
+//     }
+// });
+
+// const singleUpload = multer({ dest: 'uploads/' }).single('image');
+
+app.post('/upload/single', upload.single('image'), (req, res) => {
+    const product_id = req.body.product_id;
+    const image = req.file.filename; // Multer renames the file and adds it to req.file
+
+    const sql = `INSERT INTO images (product_id, image) VALUES (?, ?)`;
+    const values = [product_id, image];
+
+    connection.query(sql, values, (err, result) => {
+        if (err) {
+            console.error('Error adding file to database:', err);
+            return res.status(500).send('An error occurred while adding file to database');
+        }
+        console.log('File added to database');
+        res.send({
+            success: true,
+            message: "File uploaded successfully"
+        });
+    });
+});
+
+// app.post('/upload/image', upload.single('image'), async (req, res) => {
+//     try {
+//         const product_id = req.body.product_id;
+//         const files = req.files;
+//         for (let file of files) {
+//             console.log(file);
+//             let path;
+//             await uploadToS3(file.buffer).then((res) => {
+//                 path = res.Location;
+//             });
+//             const sql = `INSERT INTO images (product_id, image) VALUES (?, ?)`;
+//             const values = [product_id, path];
+
+//             connection.query(sql, values, (err, result) => {
+//                 if (err) {
+//                     console.error('Error adding file to database:', err);
+//                     return res.status(500).send('An error occurred while adding file to database');
+//                 }
+//                 console.log('File added to database');
+//             });
 //         }
 //         res.send({
 //             success: true,
@@ -173,6 +228,64 @@ app.post('/upload', upload.array('mainimage', 10), async (req, res) => {
     }
 });
 
+
+// app.post('/upload', upload.array('mainimage', 6), upload.single('image'), async (req, res) => {
+//     try {
+//         const product_id = req.body.product_id;
+//         const files = req.files;
+
+//         if (req.file) {
+
+//             const file = req.file;
+//             console.log(file);
+//             let path;
+//             await uploadToS3(file.buffer).then((res) => {
+//                 path = res.Location;
+//             });
+//             const sql = `INSERT INTO images (product_id, image) VALUES (?, ?)`;
+//             const values = [product_id, path];
+
+//             connection.query(sql, values, (err, result) => {
+//                 if (err) {
+//                     console.error('Error adding file to database:', err);
+//                     return res.status(500).send('An error occurred while adding file to database');
+//                 }
+//                 console.log('File added to database');
+//             });
+//         }
+
+//         if (req.files && req.files.length > 0) {
+
+//             for (let file of files) {
+//                 console.log(file);
+//                 let path;
+//                 await uploadToS3(file.buffer).then((res) => {
+//                     path = res.Location;
+//                 });
+//                 const sql = `INSERT INTO images (product_id, mainimage) VALUES (?, ?)`;
+//                 const values = [product_id, path];
+
+//                 connection.query(sql, values, (err, result) => {
+//                     if (err) {
+//                         console.error('Error adding file to database:', err);
+//                         return res.status(500).send('An error occurred while adding file to database');
+//                     }
+//                     console.log('File added to database');
+//                 });
+//             }
+//         }
+
+//         res.send({
+//             success: true,
+//             message: "Files uploaded successfully"
+//         });
+//     } catch (err) {
+//         console.error('Error handling file upload:', err);
+//         res.status(500).send('An error occurred during file upload');
+//     }
+// });
+
+
 app.get('/Showimages', (req, res) => {
     const sql = `select * from images`;
     connection.query(sql, (err, result) => {
@@ -192,9 +305,69 @@ app.get('/Showimages', (req, res) => {
     })
 });
 
+app.get('/singleimage', (req, res) => {
+    const sqll = `select product.*, images.image
+                    from product 
+                    inner join images on product.id = images.product_id  where  images.product_id`;
+    connection.query(sqll, (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: '',
+                data: data
+            })
+        }
+    })
+});
+
+app.get('/show', (req, res) => {
+    const sqll = `select image from images`;
+    connection.query(sqll, [], (err, result) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: '',
+                data: result
+            })
+        }
+    })
+})
+
+app.get('/Showimg/:product_id', (req, res) => {
+    const product_id = req.params.product_id;
+    const sql = `select image from  images where product_id = ?`;
+    connection.query(sql, [product_id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: '',
+                data: data
+            })
+        }
+    })
+});
+
 app.get('/imagesbyid/:product_id', (req, res) => {
     const product_id = req.params.product_id;
-    const sqlll = `select * from images where product_id=?`;
+    const sqlll = `select mainimage from images where product_id=?`;
     connection.query(sqlll, [product_id], (err, data) => {
         if (err) {
             res.status(500).send({
@@ -216,11 +389,35 @@ app.get('/', (req, res) => {
     res.send('Database  for attaching s3 bucket');
 });
 
-app.get('/Productwithimages', (req, res) => {
-    const sqll = `select product.*, images.mainimage
-                    from product 
-                    inner join images on product.id = images.product_id  where  images.product_id`;
-    connection.query(sqll, (err, data) => {
+app.get('/Productwithimages/:product_id', (req, res) => {
+    const product_id = req.params.product_id;
+    const sqll = `select images.mainimage,product.*
+                    from images 
+                    inner join product on  images.product_id = product.id  where  images.product_id=?`;
+    connection.query(sqll, [product_id], (err, data) => {
+        if (err) {
+            res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+            })
+        } else {
+            res.status(200).send({
+                success: true,
+                message: '',
+                data: data
+            })
+        }
+    })
+});
+
+
+app.post('/Productwithimages', (req, res) => {
+    const product_id = req.body.product_id;
+    const sqll = `select images.mainimage,product.*
+                    from images 
+                    inner join product on  images.product_id = product.id  where  images.product_id=?`;
+    connection.query(sqll, [product_id], (err, data) => {
         if (err) {
             res.status(500).send({
                 success: false,
@@ -1153,44 +1350,85 @@ app.delete('/Emptycart/:Cart_id', (req, res) => {
 //Api end of carts table
 
 // API for Wishlist table Start......
+
+
 app.post('/AddWishlist', (req, res) => {
     const token = req.headers['x-access-token'];
     if (!token) {
-        res.status(401).send({
-            success: false,
-            message: 'unauthorized',
-            data: []
-        })
+      res.status(401).send({
+        success: false,
+        message: 'Unauthorized',
+        data: []
+      });
     } else {
-        jwt.verify(token, secret, (err, decoded) => {
+      jwt.verify(token, secret, (err, decoded) => {
+        if (err) {
+          res.status(401).send({
+            success: false,
+            message: 'Unauthorized',
+            data: []
+          });
+        } else {
+          const productId = req.body.Product_id;
+          const userId = decoded.User_id;
+          const sql = 'INSERT INTO wishlist (Product_id, User_id) VALUES (?, ?)';
+          connection.query(sql, [productId, userId], (err, result) => {
             if (err) {
-                res.status(401).send({
-                    success: false,
-                    message: 'unauthorized',
-                    data: []
-                })
+              res.status(500).send({
+                success: false,
+                message: err.sqlMessage,
+                data: []
+              });
             } else {
-                const Product_id = req.body.Product_id;
-                const sql = `insert into wishlist (Product_id,User_id) values (?,?)`;
-                connection.query(sql, [Product_id, decoded.User_id], (err, result) => {
-                    if (err) {
-                        res.status(500).send({
-                            success: false,
-                            message: err.sqlMessage,
-                            data: []
-                        })
-                    } else {
-                        res.status(200).send({
-                            success: true,
-                            message: 'Product Add to Wishlist',
-                            data: result
-                        })
-                    }
-                })
+              res.status(200).send({
+                success: true,
+                message: 'Product added to wishlist',
+                data: result
+              });
             }
-        })
+          });
+        }
+      });
     }
-});
+  });
+// app.post('/AddWishlist', (req, res) => {
+//     const token = req.headers['x-access-token'];
+//     if (!token) {
+//         res.status(401).send({
+//             success: false,
+//             message: 'unauthorized',
+//             data: []
+//         })
+//     } else {
+//         jwt.verify(token, secret, (err, decoded) => {
+//             if (err) {
+//                 res.status(401).send({
+//                     success: false,
+//                     message: 'unauthorized',
+//                     data: []
+//                 })
+//             } else {
+//                 const Product_id = req.body.Product_id;
+//                 const sql = `insert into wishlist (Product_id,User_id) values (?,?)`;
+//                 connection.query(sql, [Product_id, decoded.User_id], (err, result) => {
+//                     if (err) {
+//                         res.status(500).send({
+//                             success: false,
+//                             message: err.sqlMessage,
+//                             data: []
+//                         })
+//                     } else {
+//                         res.status(200).send({
+//                             success: true,
+//                             message: 'Product Add to Wishlist',
+//                             data: result
+//                         })
+//                     }
+//                 })
+//             }
+//         })
+//     }
+// });
 
 app.delete('/Deleteproduct/:Product_id', (req, res) => {
     const Product_id = req.params.Product_id;
